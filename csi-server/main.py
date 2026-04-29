@@ -187,7 +187,7 @@ async def get_stats(
         return {"message": "No data collected for this market yet.", "stats": stats}
 
     return stats
-
+logger.info(f"DATABASE_URL: {settings.database_url}")
 
 @app.get("/markets/{market_id}/frames/{frame_id}", tags=["Analytics"])
 async def get_frame(
@@ -244,7 +244,6 @@ async def list_frames(
 
 @app.get("/health", tags=["System"])
 async def health_check(db: AsyncSession = Depends(get_db)):
-    """Liveness + DB connectivity check. Useful for Railway health probes."""
     try:
         await db.execute(text("SELECT 1"))
         return {"status": "ok", "database": "connected"}
