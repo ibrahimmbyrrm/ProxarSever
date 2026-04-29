@@ -35,8 +35,9 @@ security = HTTPBearer()
 engine = create_async_engine(
     settings.database_url,
     echo=False,
-    pool_pre_ping=True,       # stale connection detection
-    pool_recycle=3600,        # recycle connections every hour
+    pool_pre_ping=True,
+    pool_recycle=3600,
+    connect_args={"ssl": "require"} # Supabase için kritik olabilir
 )
 AsyncSessionLocal = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
 
@@ -247,13 +248,19 @@ async def health_check(db: AsyncSession = Depends(get_db)):
     try:
         await db.execute(text("SELECT 1"))
         return {"status": "ok", "database": "connected"}
-    except Exception:
+    except Exception as e:
+        logger.error(f"Health check failed: {str(e)}") # Gerçek hatayı logla!
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Database connection failed."
+            detail=f"Database connection failed: {str(e)}" # Postman/Tarayıcıda da gör
         )
 
-
+@app.get("/debug")
+async def debug():
+    return {
+        "env": settings.env,
+        "db": settings.database_url
+    }
 # --- Development Tools ---
 @app.post("/dev/token", tags=["Development"])
 async def dev_token(market_id: str = Query(..., description="Market ID to embed in the token")):
