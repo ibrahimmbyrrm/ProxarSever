@@ -18,7 +18,7 @@ logger = logging.getLogger(__name__)
 class Settings(BaseSettings):
     database_url: str
     jwt_secret_key: str
-    env: str = "production"  # to control dev mode
+    env: str = "developlemt"  # to control dev mode
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8")
 
