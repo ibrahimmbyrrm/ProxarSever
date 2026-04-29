@@ -1,5 +1,5 @@
 import logging
-from fastapi import FastAPI, HTTPException, Depends, status
+from fastapi import FastAPI, HTTPException, Depends, status, Query
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.orm import sessionmaker
@@ -134,27 +134,30 @@ async def ingest(
         )
 
 
-@app.get("/markets/{market_id}/frames", tags=["Analytics"])
-async def get_frames(
+@app.get("/markets/{market_id}/stats", tags=["Analytics"])
+async def get_stats(
         market_id: str,
-        limit: int = Field(50, ge=1, le=500, description="Maximum number of frames to return"),
         token: dict = Depends(get_current_token),
         db: AsyncSession = Depends(get_db)
 ):
-    """Retrieves a summary list of the latest processed frames for a specific market."""
+    """Calculates and returns general statistics for the market."""
     verify_market_access(market_id, token)
 
-    try:
-        rows = await db.execute(text(
-            "SELECT frame_id, timestamp, person_count, received_at FROM frames "
-            "WHERE market_id = :mid ORDER BY timestamp DESC LIMIT :lim"
-        ), {"mid": market_id, "lim": limit})
-        return {"data": [dict(r._mapping) for r in rows]}
-    except Exception as e:
-        logger.error(f"Error fetching frames: {str(e)}")
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Could not retrieve data.")
+    r = await db.execute(text("""
+        SELECT COUNT(*) as total_frames,
+               COALESCE(AVG(person_count), 0) as avg_occupancy,
+               COALESCE(MAX(person_count), 0) as peak_occupancy,
+               MIN(timestamp) as first_ts,
+               MAX(timestamp) as last_ts
+        FROM frames WHERE market_id = :mid
+    """), {"mid": market_id})
 
+    stats = dict(r.first()._mapping)
+    # If there are no frames, first_ts and last_ts might be null. User-friendly response:
+    if stats.get("total_frames") == 0:
+        return {"message": "No data collected for this market yet.", "stats": stats}
 
+    return stats
 @app.get("/markets/{market_id}/frames/{frame_id}", tags=["Analytics"])
 async def get_frame(
         market_id: str,
