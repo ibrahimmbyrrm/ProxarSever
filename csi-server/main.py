@@ -37,7 +37,10 @@ engine = create_async_engine(
     echo=False,
     pool_pre_ping=True,
     pool_recycle=3600,
-    connect_args={"ssl": "require"} # Supabase için kritik olabilir
+    connect_args={
+        "statement_cache_size": 0,             # asyncpg önbelleğini kapatır
+        "prepared_statement_cache_size": 0,    # SQLAlchemy önbelleğini kapatır
+    }
 )
 AsyncSessionLocal = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
 
