@@ -148,12 +148,19 @@ async def ingest(
             "inserted_people": len(payload.people)
         }
 
+
     except SQLAlchemyError as e:
+
         await db.rollback()
+
         logger.error(f"Database insertion error (Frame ID: {payload.frame_id}): {str(e)}")
+
         raise HTTPException(
+
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="An internal server error occurred while saving the data."
+
+            detail=str(e)  # geçici olarak gerçek hatayı dön
+
         )
 
 
